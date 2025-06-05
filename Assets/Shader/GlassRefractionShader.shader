@@ -9,10 +9,12 @@ Shader "Custom/URP/GlassRefraction"
         _RefractAmount ("Refract Amount", Range(0.0, 1.0)) = 1.0
         _ReflectAmount ("Reflect Amount", Range(0.0, 1.0)) = 0.5
         _IOR ("Index of Refraction", Range(1.0, 2.0)) = 1.5
+        _RefractRT ("Refraction RT", 2D) = "white" {}
     }
     SubShader
     {
         Tags { "RenderPipeline" = "UniversalRenderPipeline" "RenderType" = "Transparent" "Queue" = "Transparent" }
+        Cull Back
         
         Pass
         {
@@ -34,6 +36,8 @@ Shader "Custom/URP/GlassRefraction"
             SAMPLER(sampler_BumpMap);
             TEXTURECUBE(_Cubemap);
             SAMPLER(sampler_Cubemap);
+            TEXTURE2D(_RefractRT);
+            SAMPLER(sampler_RefractRT);
             
             struct Attributes
             {
@@ -46,10 +50,11 @@ Shader "Custom/URP/GlassRefraction"
             struct Varyings
             {
                 float4 positionCS : SV_POSITION;
-                float4 uv : TEXCOORD1;
-                float4 TtoW0 : TEXCOORD2;
-                float4 TtoW1 : TEXCOORD3;
-                float4 TtoW2 : TEXCOORD4;
+                
+                float4 uv : TEXCOORD0;
+                float4 TtoW0 : TEXCOORD1;
+                float4 TtoW1 : TEXCOORD2;
+                float4 TtoW2 : TEXCOORD3;
             };
             
             Varyings Vertex(Attributes input)
@@ -99,10 +104,13 @@ Shader "Custom/URP/GlassRefraction"
                 // 采样漫反射纹理
                 half4 texColor = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv.xy);
                 
-                // 从Cubemap采样折射和反射颜色
-                half3 refractCol = SAMPLE_TEXTURECUBE(_Cubemap, sampler_Cubemap, refractDir).rgb * texColor.rgb;
+                // 从Cubemap采样反射颜色
                 half3 reflectCol = SAMPLE_TEXTURECUBE(_Cubemap, sampler_Cubemap, reflectDir).rgb * texColor.rgb;
-                
+                //计算折射
+                half2 refractUV = refractDir.xy * 0.5 + 0.5;
+                refractUV = clamp(refractUV, 0.001, 0.999);
+                half3 refractCol = SAMPLE_TEXTURE2D(_RefractRT, sampler_RefractRT, refractUV).rgb;
+
                 // 使用菲涅尔效应计算反射率
                 float fresnel = saturate(1.0 - dot(bump, worldViewDir));
                 fresnel = pow(fresnel, 5.0);
@@ -114,10 +122,7 @@ Shader "Custom/URP/GlassRefraction"
                     fresnel
                 );
                 
-                // 调试输出
-                // if (any(finalColor < 0.001)) {
-                //     finalColor = half3(0, 1, 0); // 若颜色过暗，强制显示绿色
-                // }
+                
                 
                 return half4(finalColor, 1);
             }
