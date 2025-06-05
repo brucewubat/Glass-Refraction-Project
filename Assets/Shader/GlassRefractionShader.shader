@@ -14,7 +14,6 @@ Shader "Custom/URP/GlassRefraction"
     SubShader
     {
         Tags { "RenderPipeline" = "UniversalRenderPipeline" "RenderType" = "Transparent" "Queue" = "Transparent" }
-        Cull Back
         
         Pass
         {
@@ -108,7 +107,7 @@ Shader "Custom/URP/GlassRefraction"
                 half3 reflectCol = SAMPLE_TEXTURECUBE(_Cubemap, sampler_Cubemap, reflectDir).rgb * texColor.rgb;
                 //计算折射
                 half2 refractUV = refractDir.xy * 0.5 + 0.5;
-                
+                refractUV = clamp(refractUV, 0.001, 0.999);
                 half3 refractCol = SAMPLE_TEXTURE2D(_RefractRT, sampler_RefractRT, refractUV).rgb;
 
                 // 使用菲涅尔效应计算反射率
@@ -121,8 +120,6 @@ Shader "Custom/URP/GlassRefraction"
                     reflectCol * _ReflectAmount,
                     fresnel
                 );
-                
-                
                 
                 return half4(finalColor, 1);
             }
